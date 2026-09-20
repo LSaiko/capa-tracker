@@ -17,10 +17,11 @@ and did not break anything else, (5) implements and records the change, (6) tell
 responsible for quality, and (7) brings it to management review; and 820.100(b) requires all
 of it to be documented. This tool is that workflow as a state machine: intake, root cause
 analysis, corrective action, a scheduled effectiveness check the record cannot skip, and
-closure into one evidence bundle rendered as both a PDF report and a JSON export. An "Explainer" assistant helps the quality engineer
-structure the root cause analysis (5-why chain, fishbone categories) with an explicit
-confidence band on every suggestion, but it never decides the root cause or the
-effectiveness result: those stay human quality-engineering judgments.
+closure into one evidence bundle rendered as both a PDF report and a JSON export. An
+"Explainer" assistant helps the quality engineer structure the root cause analysis (5-why
+chain, fishbone categories) with an explicit confidence band on every suggestion, but it
+never decides the root cause or the effectiveness result: those stay human
+quality-engineering judgments.
 
 [![Dashboard: CAPA board with all five lifecycle columns, opened/closed trend, reopened counter](docs/dashboard.png)](https://lsaiko.github.io/capa-tracker/)
 
