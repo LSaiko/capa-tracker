@@ -1,0 +1,407 @@
+{
+  "$defs": {
+    "ClosureRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "capa_id": {
+          "pattern": "^CAPA-\\d+$",
+          "title": "Capa Id",
+          "type": "string"
+        },
+        "closed_date": {
+          "format": "date",
+          "title": "Closed Date",
+          "type": "string"
+        },
+        "closed_by": {
+          "minLength": 1,
+          "title": "Closed By",
+          "type": "string"
+        },
+        "linked_requirement_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Linked Requirement Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "capa_id",
+        "closed_date",
+        "closed_by"
+      ],
+      "title": "ClosureRecord",
+      "type": "object"
+    },
+    "ConfidenceBand": {
+      "enum": [
+        "HIGH",
+        "AMBIGUOUS",
+        "LOW"
+      ],
+      "title": "ConfidenceBand",
+      "type": "string"
+    },
+    "CorrectiveAction": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^CAPA-\\d+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "nonconformance_id": {
+          "pattern": "^NC-\\d+$",
+          "title": "Nonconformance Id",
+          "type": "string"
+        },
+        "action_description": {
+          "minLength": 1,
+          "title": "Action Description",
+          "type": "string"
+        },
+        "owner": {
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "due_date": {
+          "format": "date",
+          "title": "Due Date",
+          "type": "string"
+        },
+        "status": {
+          "default": "planned",
+          "enum": [
+            "planned",
+            "in_progress",
+            "done"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "nonconformance_id",
+        "action_description",
+        "owner",
+        "due_date"
+      ],
+      "title": "CorrectiveAction",
+      "type": "object"
+    },
+    "EffectivenessCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "capa_id": {
+          "pattern": "^CAPA-\\d+$",
+          "title": "Capa Id",
+          "type": "string"
+        },
+        "check_date": {
+          "format": "date",
+          "title": "Check Date",
+          "type": "string"
+        },
+        "method": {
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "result": {
+          "default": "pending",
+          "enum": [
+            "effective",
+            "not_effective",
+            "pending"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "evidence_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Uri"
+        }
+      },
+      "required": [
+        "capa_id",
+        "check_date",
+        "method"
+      ],
+      "title": "EffectivenessCheck",
+      "type": "object"
+    },
+    "FishboneCategory": {
+      "description": "Ishikawa 6M categories.",
+      "enum": [
+        "Method",
+        "Machine",
+        "Material",
+        "Manpower",
+        "Measurement",
+        "Environment"
+      ],
+      "title": "FishboneCategory",
+      "type": "string"
+    },
+    "FishboneEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/FishboneCategory"
+        },
+        "cause": {
+          "title": "Cause",
+          "type": "string"
+        }
+      },
+      "required": [
+        "category",
+        "cause"
+      ],
+      "title": "FishboneEntry",
+      "type": "object"
+    },
+    "NcStatus": {
+      "description": "820.100 lifecycle: intake -> investigation -> action -> verification -> closure.",
+      "enum": [
+        "open",
+        "rca_in_progress",
+        "capa_assigned",
+        "effectiveness_pending",
+        "closed"
+      ],
+      "title": "NcStatus",
+      "type": "string"
+    },
+    "Nonconformance": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^NC-\\d+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "audit",
+            "complaint",
+            "internal",
+            "supplier"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "minor",
+            "major",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "detected_date": {
+          "format": "date",
+          "title": "Detected Date",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/NcStatus",
+          "default": "open"
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "source",
+        "severity",
+        "detected_date"
+      ],
+      "title": "Nonconformance",
+      "type": "object"
+    },
+    "RootCauseAnalysis": {
+      "additionalProperties": false,
+      "properties": {
+        "nonconformance_id": {
+          "pattern": "^NC-\\d+$",
+          "title": "Nonconformance Id",
+          "type": "string"
+        },
+        "method": {
+          "enum": [
+            "5-why",
+            "fishbone"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/WhyStep"
+              },
+              "type": "array"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/FishboneEntry"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Steps"
+        },
+        "suggested_category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FishboneCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "root_cause_text": {
+          "default": "",
+          "title": "Root Cause Text",
+          "type": "string"
+        },
+        "confidence_band": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConfidenceBand"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "readOnly": true
+        }
+      },
+      "required": [
+        "nonconformance_id",
+        "method",
+        "confidence_band"
+      ],
+      "title": "RootCauseAnalysis",
+      "type": "object"
+    },
+    "WhyStep": {
+      "additionalProperties": false,
+      "properties": {
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question",
+        "answer"
+      ],
+      "title": "WhyStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Stable JSON export for the traceability-matrix-dhf hub (docs/closure-evidence-schema.md).\n\n`schema_version`, `generated_at`, `evidence_id` and `requirement_ids` deliberately mirror the\nhub's ValidationEvidence binding keys so a `from_capa_closure` adapter can ingest this.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "source": {
+      "const": "capa-tracker",
+      "default": "capa-tracker",
+      "title": "Source",
+      "type": "string"
+    },
+    "evidence_id": {
+      "pattern": "^CAPA-\\d+$",
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "requirement_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Requirement Ids",
+      "type": "array"
+    },
+    "nonconformance": {
+      "$ref": "#/$defs/Nonconformance"
+    },
+    "rca": {
+      "$ref": "#/$defs/RootCauseAnalysis"
+    },
+    "capa": {
+      "$ref": "#/$defs/CorrectiveAction"
+    },
+    "effectiveness_check": {
+      "$ref": "#/$defs/EffectivenessCheck"
+    },
+    "closure": {
+      "$ref": "#/$defs/ClosureRecord"
+    },
+    "cfr_citation": {
+      "const": "21 CFR 820.100",
+      "default": "21 CFR 820.100",
+      "title": "Cfr Citation",
+      "type": "string"
+    }
+  },
+  "required": [
+    "generated_at",
+    "evidence_id",
+    "nonconformance",
+    "rca",
+    "capa",
+    "effectiveness_check",
+    "closure"
+  ],
+  "title": "ClosureEvidence",
+  "type": "object"
+}

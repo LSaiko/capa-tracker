@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -121,3 +121,23 @@ class ClosureRecord(_Strict):
     closed_date: date
     closed_by: str = Field(min_length=1)
     linked_requirement_ids: list[str] = Field(default_factory=list)  # traceability hub keys
+
+
+class ClosureEvidence(_Strict):
+    """Stable JSON export for the traceability-matrix-dhf hub (docs/closure-evidence-schema.md).
+
+    `schema_version`, `generated_at`, `evidence_id` and `requirement_ids` deliberately mirror the
+    hub's ValidationEvidence binding keys so a `from_capa_closure` adapter can ingest this.
+    """
+
+    schema_version: Literal["1.0"] = "1.0"
+    generated_at: datetime
+    source: Literal["capa-tracker"] = "capa-tracker"
+    evidence_id: str = Field(pattern=r"^CAPA-\d+$")  # = closure.capa_id
+    requirement_ids: list[str] = Field(default_factory=list)  # = closure.linked_requirement_ids
+    nonconformance: Nonconformance
+    rca: RootCauseAnalysis
+    capa: CorrectiveAction
+    effectiveness_check: EffectivenessCheck
+    closure: ClosureRecord
+    cfr_citation: Literal["21 CFR 820.100"] = "21 CFR 820.100"

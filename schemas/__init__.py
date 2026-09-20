@@ -1,4 +1,5 @@
 from schemas.models import (
+    ClosureEvidence,
     ClosureRecord,
     ConfidenceBand,
     CorrectiveAction,
@@ -13,6 +14,7 @@ from schemas.models import (
 )
 
 __all__ = [
+    "ClosureEvidence",
     "ClosureRecord",
     "ConfidenceBand",
     "CorrectiveAction",
