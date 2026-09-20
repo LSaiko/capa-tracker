@@ -24,6 +24,7 @@ class Store:
     capas: dict[str, CorrectiveAction] = field(default_factory=dict)  # by capa id
     checks: dict[str, EffectivenessCheck] = field(default_factory=dict)  # by capa_id
     closures: dict[str, ClosureRecord] = field(default_factory=dict)  # by capa_id
+    reopens: int = 0  # ponytail: a counter beats a per-NC history until an audit trail is needed
 
     def capa_for(self, nc_id: str) -> CorrectiveAction:
         # ponytail: one CAPA per NC; a list per NC is the upgrade when multi-action plans arrive.
