@@ -17,7 +17,7 @@ and did not break anything else, (5) implements and records the change, (6) tell
 responsible for quality, and (7) brings it to management review; and 820.100(b) requires all
 of it to be documented. This tool is that workflow as a state machine: intake, root cause
 analysis, corrective action, a scheduled effectiveness check the record cannot skip, and
-closure into a signed evidence bundle. An "Explainer" assistant helps the quality engineer
+closure into one evidence bundle rendered as both a PDF report and a JSON export. An "Explainer" assistant helps the quality engineer
 structure the root cause analysis (5-why chain, fishbone categories) with an explicit
 confidence band on every suggestion, but it never decides the root cause or the
 effectiveness result: those stay human quality-engineering judgments.
@@ -37,6 +37,8 @@ the demo workflow runs in the browser so you can move a nonconformance through e
 - [Quick start](#quick-start)
 - [API](#api)
 - [Layout and dev commands](#layout-and-dev-commands)
+- [Related projects](#related-projects)
+- [Interview Q&A](#interview-qa)
 - [License](#license)
 
 ## The CAPA lifecycle
@@ -241,6 +243,66 @@ python -m venv .venv && .venv/Scripts/pip install -e .[dev]
 uvicorn app.main:app --reload
 cd dashboard && npm ci && npx tsc --noEmit && npm run build
 ```
+
+## Related projects
+
+- [traceability-matrix-dhf](https://github.com/LSaiko/traceability-matrix-dhf)
+  ([live demo](https://lsaiko.github.io/traceability-matrix-dhf/)): the Archivist. Keeps the
+  design-history traceability matrix and consumes this tool's `ClosureEvidence` feed through a
+  planned `from_capa_closure` adapter (not yet built on either side), binding on `evidence_id`
+  + `requirement_ids` so a closed CAPA becomes design-control evidence against the requirements
+  it affected (820.30 <- 820.100).
+- [ml-samd-validator](https://github.com/LSaiko/ml-samd-validator)
+  ([live demo](https://lsaiko.github.io/ml-samd-validator/)): the Inspector, sibling role to
+  this tool's Explainer. Produces drift / PCCP / fairness `ValidationEvidence` with the same
+  three-band confidence routing and the same four binding keys.
+- **Part 11 module (planned, not built).** 21 CFR Part 11 electronic signature on the closure
+  record: signer identity, meaning of the signature, timestamp and a hash of the signed
+  `ClosureEvidence`. The hook is `ClosureRecord.closed_by`, which today is a free-text name;
+  the signature manifest would attach there and the bundle hash would cover the rest of the
+  record. Nothing in this repository claims Part 11 compliance.
+
+## Interview Q&A
+
+**Why 5-why and fishbone rather than one?** They answer different questions. 5-why is
+linear and goes for depth: one chain from the symptom to a systemic cause, which is the right
+tool when there is one dominant failure path. Fishbone (Ishikawa) is broad: it forces the
+team to consider all six categories before committing to a chain, which is the right tool
+when the cause is not obvious or several factors interact. Most real investigations use a
+fishbone to choose where to dig and a 5-why to dig there. The tool stores either as the
+RCA method and renders either in the closure report; the category suggestion works for both
+because it only reads the nonconformance description.
+
+**Why does the state machine forbid `Closed` from anywhere but `Effectiveness check
+pending`?** Because 820.100(a)(4) puts verification between the action and the closure, and
+a state machine that allowed `Open -> Closed` or `CAPA assigned -> Closed` would let the
+record satisfy 820.100(b) documentation without the step the regulation actually cares
+about. Making the pending check the only predecessor of `Closed`, and making the closure
+gate reject any result but `effective` for the same CAPA, turns "we verified it" from a
+checkbox into a structural property: the record cannot be in `Closed` without an effective
+check existing. The 20 forbidden pairs are each a test.
+
+**Why a keyword heuristic instead of an LLM classifier for categories?** Four reasons, in
+order. Deterministic: the same description gives the same band every time, which matters
+when the band is printed on a regulated record. Auditable: the score is a sum of visible
+weights over visible words; an inspector can recompute it. Testable: the thresholds and the
+worked examples are unit tests, not prompts. And the description of a nonconformance often
+contains product, lot and complaint-file details, so nothing leaves the QMS boundary. The
+cost is recall: no synonyms, no negation, so "the gauge was fine but the fixture was worn"
+still credits Measurement. That cost is bounded by the bands (it shows up as AMBIGUOUS, not
+as a wrong HIGH). The upgrade path is named in `app/rca.py`: embeddings or an LLM classifier
+behind the same `CategorySuggestion` contract, so the API, the bands and the tests do not
+change.
+
+**How would you handle a CAPA that needs more than one corrective action?** Today it is one
+CAPA per nonconformance (`Store.capa_for`, marked `# ponytail:`), and the reopen path
+replaces the ineffective action rather than appending to it. That is the deliberate
+ceiling: it keeps the closure bundle a single `capa` + `effectiveness_check` pair and keeps
+the state machine five states. The upgrade is a list of actions per nonconformance, each
+with its own owner, due date and scheduled check, and a closure gate that requires *every*
+action's check to be `effective`; the `ClosureEvidence` schema would go to 2.0 with `capas:
+[]` and `effectiveness_checks: []`, and the hub adapter would need the same bump. Until a
+real plan needs it, the ceiling is cheaper than the flexibility.
 
 ## License
 
