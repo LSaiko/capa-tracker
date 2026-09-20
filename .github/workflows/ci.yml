@@ -23,6 +23,9 @@ jobs:
 
   dashboard:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,5 +33,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
-      - run: npm ci && npx tsc --noEmit && npm run build
-        working-directory: dashboard
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build

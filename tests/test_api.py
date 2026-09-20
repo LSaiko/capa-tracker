@@ -155,12 +155,30 @@ def test_reopen_on_not_effective() -> None:
     assert detail["capa"]["id"] == "CAPA-2" and detail["checks"][0]["result"] == "pending"
 
 
-def test_rca_ambiguous_leaves_suggested_none() -> None:
-    client.post("/nonconformance", json={**NC_BODY, "description": "operator on shift used gauge"})
+@pytest.mark.parametrize(
+    ("description", "band"),
+    [
+        ("gauge calibration was overdue and the fixture was worn", "AMBIGUOUS"),
+        ("operator on shift used gauge", "LOW"),
+    ],
+)
+def test_rca_non_high_leaves_suggested_none(description: str, band: str) -> None:
+    client.post("/nonconformance", json={**NC_BODY, "description": description})
     body = client.post("/rca", json={"nonconformance_id": "NC-1", "method": "fishbone"}).json()
     assert body["rca"]["suggested_category"] is None and body["rca"]["confidence"] is not None
-    assert body["rca"]["confidence_band"] in {"AMBIGUOUS", "LOW"}
+    assert body["rca"]["confidence_band"] == band == body["suggestion"]["band"]
     assert len(body["suggestion"]["candidates"]) == 2
+    assert (body["suggestion"]["prompt"] is not None) == (band == "LOW")
+
+
+def test_rca_explicit_confidence_is_kept() -> None:
+    client.post("/nonconformance", json=NC_BODY)
+    body = client.post(
+        "/rca",
+        json={"nonconformance_id": "NC-1", "method": "5-why", "confidence": 0.5},
+    ).json()
+    assert body["rca"]["confidence"] == 0.5 and body["rca"]["confidence_band"] == "LOW"
+    assert body["rca"]["suggested_category"] is None and body["suggestion"]["band"] == "HIGH"
 
 
 def test_rca_suggest_endpoint() -> None:

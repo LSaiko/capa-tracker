@@ -27,20 +27,24 @@ def at(status: NcStatus) -> Nonconformance:
     return NC.model_copy(update={"status": status})
 
 
-def test_every_valid_transition() -> None:
-    for a, b in itertools.pairwise(PATH):
-        assert transition(at(a), b).status is b
-    assert transition(at(NcStatus.EFFECTIVENESS_PENDING), NcStatus.CAPA_ASSIGNED).status is (
-        NcStatus.CAPA_ASSIGNED
-    )
+VALID = [(a, b) for a in NcStatus for b in NcStatus if b in TRANSITIONS[a]]
+INVALID = [(a, b) for a in NcStatus for b in NcStatus if b not in TRANSITIONS[a]]
 
 
-def test_every_invalid_transition_raises() -> None:
-    invalid = [(a, b) for a in NcStatus for b in NcStatus if b not in TRANSITIONS[a]]
-    assert len(invalid) == len(NcStatus) ** 2 - 5
-    for a, b in invalid:
-        with pytest.raises(InvalidTransition):
-            transition(at(a), b)
+def test_transition_table_is_the_five_step_path_plus_reopen() -> None:
+    assert set(VALID) == {*itertools.pairwise(PATH), (PATH[3], PATH[2])}
+    assert len(VALID) + len(INVALID) == len(NcStatus) ** 2 == 25
+
+
+@pytest.mark.parametrize(("a", "b"), VALID, ids=[f"{a.value}->{b.value}" for a, b in VALID])
+def test_valid_transition(a: NcStatus, b: NcStatus) -> None:
+    assert transition(at(a), b).status is b
+
+
+@pytest.mark.parametrize(("a", "b"), INVALID, ids=[f"{a.value}->{b.value}" for a, b in INVALID])
+def test_invalid_transition_raises(a: NcStatus, b: NcStatus) -> None:
+    with pytest.raises(InvalidTransition, match=f"{a.value} -> {b.value}"):
+        transition(at(a), b)
 
 
 def test_reopen_on_not_effective() -> None:
