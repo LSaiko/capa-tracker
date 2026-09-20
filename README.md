@@ -262,6 +262,7 @@ cd dashboard && npm ci && npx tsc --noEmit && npm run build
   `ClosureEvidence`. The hook is `ClosureRecord.closed_by`, which today is a free-text name;
   the signature manifest would attach there and the bundle hash would cover the rest of the
   record. Nothing in this repository claims Part 11 compliance.
+  Reference implementation of that hook: [part11-audit-trail](https://github.com/LSaiko/part11-audit-trail) (hash-chained audit log + Ed25519 signature over a record hash).
 
 ## Interview Q&A
 
