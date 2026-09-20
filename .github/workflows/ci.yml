@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -e .[dev]
+      - run: ruff check .
+      - run: mypy app schemas
+      - run: pytest --cov=app --cov=schemas --cov-branch --cov-report=term-missing
+
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: present
+        run: test -f dashboard/package.json && echo "yes=true" >> "$GITHUB_OUTPUT" || echo "dashboard not built yet (phase 5); skipping"
+      - if: steps.present.outputs.yes == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - if: steps.present.outputs.yes == 'true'
+        run: npm ci && npx tsc --noEmit && npm run build
+        working-directory: dashboard
