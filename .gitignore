@@ -20,3 +20,6 @@ dashboard/tsconfig.tsbuildinfo
 
 # outputs
 *.pdf
+
+# sqlite
+*.db
