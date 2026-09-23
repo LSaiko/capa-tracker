@@ -6,25 +6,25 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app.store import Store
+from app.store import CapaStore
 from schemas import ClosureEvidence
 
 SCHEMA_FILE = Path(__file__).resolve().parents[1] / "docs" / "closure-evidence.schema.json"
 
 
-def build_closure_bundle(store: Store, nc_id: str) -> ClosureEvidence:
+def build_closure_bundle(store: CapaStore, nc_id: str) -> ClosureEvidence:
     """Assemble NC + RCA + CAPA + check + closure into one ClosureEvidence (KeyError if missing)."""
-    nc = store.nonconformances[nc_id]
+    nc = store.get_nc(nc_id)
     capa = store.capa_for(nc_id)
-    closure = store.closures[capa.id]
+    closure = store.get_closure(capa.id)
     return ClosureEvidence(
         generated_at=datetime.now(UTC),
         evidence_id=closure.capa_id,
         requirement_ids=list(closure.linked_requirement_ids),
         nonconformance=nc,
-        rca=store.rcas[nc_id],
+        rca=store.get_rca(nc_id),
         capa=capa,
-        effectiveness_check=store.checks[capa.id],
+        effectiveness_check=store.get_check(capa.id),
         closure=closure,
     )
 
