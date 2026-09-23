@@ -110,6 +110,3 @@ class Store(CapaStore):
 
     def reopens(self) -> int:
         return self._reopens
-
-
-store = Store()

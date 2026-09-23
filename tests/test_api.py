@@ -1,12 +1,13 @@
 import json
+from collections.abc import Iterator
 
 import jsonschema
 import pytest
 from fastapi.testclient import TestClient
 
 from app.export import SCHEMA_FILE
-from app.main import app
-from app.store import Store, store
+from app.main import app, get_store
+from app.store import Store
 
 client = TestClient(app)
 
@@ -29,8 +30,13 @@ CAPA_BODY = {
 
 
 @pytest.fixture(autouse=True)
-def _fresh_store() -> None:
-    vars(store).update(vars(Store()))  # ponytail: reset the module-level store in place
+def _fresh_store() -> Iterator[None]:
+    # ponytail: the fast suite runs on the in-memory Store; SQLite is covered by
+    # tests/test_sqlite_store.py and tests/test_sqlite_integration.py.
+    memory = Store()
+    app.dependency_overrides[get_store] = lambda: memory
+    yield
+    app.dependency_overrides.clear()
 
 
 def test_health() -> None:

@@ -1,7 +1,7 @@
 """FastAPI surface for the Explainer: CAPA records in, closure evidence out.
 
-# ponytail: one module-level Store, CORS allow-all (Vite dev server), no auth; the upgrade path
-# is a Store dependency + SQLite once persistence or multi-user is needed.
+# ponytail: CORS allow-all (Vite dev server), no auth; add an auth dependency the day this
+# is reachable from anywhere but localhost.
 """
 
 from __future__ import annotations
@@ -11,10 +11,11 @@ import tempfile
 from collections import Counter
 from collections.abc import Callable
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import Field
@@ -23,7 +24,8 @@ from app.export import build_closure_bundle
 from app.rca import CategorySuggestion, looks_like_root_cause, suggest_category
 from app.report import render_closure_report
 from app.scheduler import schedule_effectiveness_check
-from app.store import store
+from app.sqlite_store import SqliteStore
+from app.store import CapaStore
 from app.workflow import InvalidTransition, apply_effectiveness, close, transition
 from schemas import (
     ClosureEvidence,
@@ -36,6 +38,14 @@ from schemas import (
     WhyStep,
 )
 from schemas.models import _Strict
+
+
+@lru_cache  # ponytail: one process-wide store; tests swap it via app.dependency_overrides.
+def get_store() -> CapaStore:
+    return SqliteStore()
+
+
+StoreDep = Annotated[CapaStore, Depends(get_store)]
 
 app = FastAPI(title="capa-tracker")
 app.add_middleware(
@@ -89,19 +99,19 @@ def health() -> dict[str, str]:
 
 
 @app.post("/nonconformance")
-def create_nonconformance(body: NonconformanceIn) -> Nonconformance:
+def create_nonconformance(body: NonconformanceIn, store: StoreDep) -> Nonconformance:
     nc = Nonconformance(id=_next_id("NC", [n.id for n in store.list_ncs()]), **body.model_dump())
     store.put_nc(nc)
     return nc
 
 
 @app.get("/nonconformances")
-def list_nonconformances() -> list[Nonconformance]:
+def list_nonconformances(store: StoreDep) -> list[Nonconformance]:
     return store.list_ncs()
 
 
 @app.get("/nonconformance/{nc_id}")
-def get_nonconformance(nc_id: str) -> dict[str, Any]:
+def get_nonconformance(nc_id: str, store: StoreDep) -> dict[str, Any]:
     nc = store.get_nc(nc_id)
     rca = _opt(store.get_rca, nc_id)
     capa = _opt(store.capa_for, nc_id)
@@ -127,7 +137,7 @@ def rca_suggest(description: str) -> CategorySuggestion:
 
 
 @app.post("/rca")
-def create_rca(body: RootCauseAnalysis) -> dict[str, Any]:
+def create_rca(body: RootCauseAnalysis, store: StoreDep) -> dict[str, Any]:
     nc = store.get_nc(body.nonconformance_id)
     suggestion = suggest_category(nc.description)
     if body.suggested_category is None and body.confidence is None:
@@ -141,7 +151,7 @@ def create_rca(body: RootCauseAnalysis) -> dict[str, Any]:
 
 
 @app.post("/capa")
-def create_capa(body: CorrectiveActionIn) -> dict[str, Any]:
+def create_capa(body: CorrectiveActionIn, store: StoreDep) -> dict[str, Any]:
     nc = store.get_nc(body.nonconformance_id)
     capa = CorrectiveAction(
         id=_next_id("CAPA", [c.id for c in store.list_capas()]), **body.model_dump()
@@ -159,7 +169,7 @@ def create_capa(body: CorrectiveActionIn) -> dict[str, Any]:
 
 
 @app.post("/effectiveness-check")
-def record_effectiveness(body: EffectivenessCheck) -> dict[str, Any]:
+def record_effectiveness(body: EffectivenessCheck, store: StoreDep) -> dict[str, Any]:
     capa = store.get_capa(body.capa_id)
     nc = apply_effectiveness(store.get_nc(capa.nonconformance_id), body)
     if body.result == "not_effective":
@@ -170,7 +180,7 @@ def record_effectiveness(body: EffectivenessCheck) -> dict[str, Any]:
 
 
 @app.post("/close")
-def close_capa(body: ClosureRecord) -> ClosureEvidence:
+def close_capa(body: ClosureRecord, store: StoreDep) -> ClosureEvidence:
     capa = store.get_capa(body.capa_id)
     nc = store.get_nc(capa.nonconformance_id)
     store.put_nc(close(nc, store.get_check(capa.id), body))
@@ -179,19 +189,19 @@ def close_capa(body: ClosureRecord) -> ClosureEvidence:
 
 
 @app.get("/closure/{capa_id}/evidence.json")
-def closure_evidence(capa_id: str) -> ClosureEvidence:
+def closure_evidence(capa_id: str, store: StoreDep) -> ClosureEvidence:
     return build_closure_bundle(store, store.get_capa(capa_id).nonconformance_id)
 
 
 @app.get("/closure/{capa_id}/report.pdf")
-def closure_report(capa_id: str) -> Response:
-    bundle = closure_evidence(capa_id)
+def closure_report(capa_id: str, store: StoreDep) -> Response:
+    bundle = closure_evidence(capa_id, store)
     out = render_closure_report(bundle, Path(tempfile.gettempdir()) / f"{capa_id}-closure.pdf")
     return Response(out.read_bytes(), media_type="application/pdf")
 
 
 @app.get("/open-capas")
-def open_capas() -> list[dict[str, Any]]:
+def open_capas(store: StoreDep) -> list[dict[str, Any]]:
     out = []
     for capa in store.list_capas():
         nc = store.get_nc(capa.nonconformance_id)
@@ -207,7 +217,7 @@ def _by_month(dates: list[date]) -> dict[str, int]:
 
 
 @app.get("/metrics")
-def metrics() -> dict[str, Any]:
+def metrics(store: StoreDep) -> dict[str, Any]:
     ncs = store.list_ncs()
     by_status = Counter(nc.status.value for nc in ncs)
     return {
