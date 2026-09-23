@@ -5,6 +5,7 @@ from test_schemas import CAPA, CHECK, CLOSURE, NC, RCA_FISH, RCA_WHY
 
 from app.sqlite_store import SqliteStore
 from app.store import CapaStore
+from schemas import NcStatus
 
 
 @pytest.fixture
@@ -34,7 +35,7 @@ def test_fishbone_steps_survive_the_json_column(store: SqliteStore) -> None:
 
 def test_put_replaces_in_place(store: SqliteStore) -> None:
     store.put_nc(NC)
-    closed = NC.model_copy(update={"status": "closed"})
+    closed = NC.model_copy(update={"status": NcStatus.CLOSED})
     store.put_nc(closed)
     assert store.list_ncs() == [closed]
 
