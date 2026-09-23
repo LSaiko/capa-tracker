@@ -10,7 +10,8 @@ You are the Explainer. You help a user structure their root cause analysis (5-wh
 (CAPA) / nonconformance workflow under FDA 21 CFR 820.100: intake -> root cause analysis
 (5-why wizard, fishbone/Ishikawa categorizer with three-band confidence) -> corrective
 action -> effectiveness verification (scheduled check; a `not_effective` result reopens the
-action phase) -> closure. A FastAPI backend holds the records in memory and drives the
+action phase) -> closure. A FastAPI backend persists the records in SQLite (stdlib `sqlite3`,
+database file from `CAPA_DB_PATH`) behind a `CapaStore` protocol and drives the
 five-state machine (`open -> rca_in_progress -> capa_assigned -> effectiveness_pending ->
 closed`, closure gated on an `effective` check); a React/TS dashboard visualises the CAPA
 board and runs in seed mode for the GitHub Pages demo; the closure report PDF (ReportLab) and
@@ -30,13 +31,14 @@ e-signature module hooking `ClosureRecord.closed_by`.
 - Climb the ladder before writing custom code: stdlib -> platform native -> installed
   dependency -> one-liner -> only then custom logic (ponytail discipline); mark deliberate
   simplifications with `# ponytail:` comments naming the ceiling and upgrade path
-- No database: in-memory dict store until persistence is needed
+- Persistence is stdlib `sqlite3` only: no ORM, no migrations framework, no connection
+  pool; the in-memory `Store` stays as the fast test double behind the `CapaStore` protocol
 - 21 CFR 820.100 (CAPA) language in every doc and in the closure report
 - Portfolio palette for any UI: `#22d3ee`, `#f97316`, `#94a3b8`
 
 ## Layout
 
-- `/app` FastAPI backend (`rca.py`, `scheduler.py`, `workflow.py`, `store.py`, `report.py`, `export.py`)
+- `/app` FastAPI backend (`rca.py`, `scheduler.py`, `workflow.py`, `store.py`, `sqlite_store.py`, `report.py`, `export.py`)
 - `/dashboard` React/TS frontend (Vite, Chart.js); seed mode when `VITE_BASE` is non-root
 - `/schemas` Pydantic v2 models + documented JSON export schema
 - `/tests` pytest

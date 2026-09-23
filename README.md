@@ -43,6 +43,7 @@ the demo workflow runs in the browser so you can move a nonconformance through e
 - [Quick start](#quick-start)
 - [API](#api)
 - [Layout and dev commands](#layout-and-dev-commands)
+- [Known limitations](#known-limitations)
 - [Related projects](#related-projects)
 - [Interview Q&A](#interview-qa)
 - [License](#license)
@@ -81,7 +82,7 @@ work, a new check is scheduled, and the reopen is counted on the metrics tile.
 ```mermaid
 flowchart LR
     W[React/TS dashboard<br/>CAPA board] --> A[FastAPI app/main.py]
-    A --> S[store<br/>in-memory records]
+    A --> S[store<br/>SQLite records]
     A --> F[workflow<br/>state machine + closure gate]
     A --> R[rca<br/>5-why prompts, fishbone categorizer]
     A --> C[scheduler<br/>effectiveness check]
@@ -203,6 +204,7 @@ cd dashboard && npx tsc --noEmit && npm run build
 |---|---|---|
 | `ALLOWED_ORIGINS` | backend | Comma-separated CORS origins (default `*`) |
 | `CAPA_EFFECTIVENESS_INTERVAL_DAYS` | backend | Days after the CAPA due date to schedule the check (default 30) |
+| `CAPA_DB_PATH` | backend | SQLite database file (default `capa.db` in the working directory; `:memory:` supported) |
 | `VITE_API_BASE` | dashboard | Backend URL (default `http://localhost:8000`); seed mode if unreachable |
 | `VITE_BASE` | dashboard build | URL subpath, e.g. `/capa-tracker/` for Pages (non-root forces seed mode) |
 
@@ -225,17 +227,21 @@ cd dashboard && npx tsc --noEmit && npm run build
 | GET | `/metrics` | | open / closed / by_status / opened_by_month / closed_by_month / reopened |
 
 Unknown ids return 404; a transition the state machine forbids returns 409 with the
-`from -> to` pair in the detail. The store is in-memory (`# ponytail:` note in `app/store.py`).
+`from -> to` pair in the detail. Records are persisted in SQLite through stdlib `sqlite3`
+(`app/sqlite_store.py`, database file from `CAPA_DB_PATH`); the in-memory `Store` is kept as
+the test double behind the same `CapaStore` protocol (`app/store.py`).
 
 ## Layout and dev commands
 
 - `/app` FastAPI backend: `workflow.py` (state machine, closure gate), `rca.py` (5-why prompts,
-  fishbone categorizer), `scheduler.py` (effectiveness check), `store.py`, `report.py`
+  fishbone categorizer), `scheduler.py` (effectiveness check), `store.py` (`CapaStore` protocol +
+  in-memory store), `sqlite_store.py` (stdlib `sqlite3` implementation), `report.py`
   (ReportLab PDF), `export.py` (ClosureEvidence bundle + JSON schema generator)
 - `/schemas` Pydantic v2 models (`extra="forbid"` everywhere)
 - `/dashboard` React/TS (Vite, Chart.js) CAPA board; seed mode for GitHub Pages
 - `/tests` pytest (schemas, RCA heuristics, scheduler, every valid and invalid state
-  transition, API happy path, reopen, 404/409, PDF/JSON endpoints, metrics bucketing)
+  transition, API happy path, reopen, 404/409, PDF/JSON endpoints, metrics bucketing,
+  SQLite round-trips and a full lifecycle driven through the API against a database file)
 - `/docs` [RCA heuristics](docs/rca-heuristics.md),
   [ClosureEvidence schema](docs/closure-evidence-schema.md)
 - `/.github/workflows` CI (ruff, mypy, pytest with coverage on 3.12/3.13; tsc + Vite build)
@@ -249,6 +255,20 @@ python -m venv .venv && .venv/Scripts/pip install -e .[dev]
 uvicorn app.main:app --reload
 cd dashboard && npm ci && npx tsc --noEmit && npm run build
 ```
+
+## Known limitations
+
+- **One CAPA per nonconformance.** `capa_for` returns a single corrective action, and the
+  reopen path replaces the ineffective one instead of appending, which keeps the closure
+  bundle a single `capa` + `effectiveness_check` pair. The upgrade is a list of actions per
+  nonconformance, each with its own owner, due date and scheduled check, a closure gate that
+  requires *every* check to be `effective`, and `ClosureEvidence` 2.0 with `capas: []` /
+  `effectiveness_checks: []` (the hub adapter would need the same bump).
+- **Fishbone categorization is a keyword heuristic, not a classifier.** Hand-picked weighted
+  vocabulary matched as whole words: no synonyms, no negation, no context. The bands bound the
+  cost (thin evidence shows up as AMBIGUOUS or LOW rather than a wrong HIGH). The upgrade is
+  embeddings or an LLM classifier behind the same `CategorySuggestion` contract, so the API,
+  the bands and the tests do not change.
 
 ## Related projects
 
