@@ -55,3 +55,4 @@ pythonpath = ["."]
 
 [tool.coverage.report]
 exclude_also = ["if __name__ == .__main__.:"]
+fail_under = 100  # app+schemas are fully covered; a drop is a regression, not a warning
